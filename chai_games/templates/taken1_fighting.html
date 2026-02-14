@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLOCK TEKKEN: GEOMETRIC FURY</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+    <style>
+        @import url('https://assets-persist.lovart.ai/agent-static-assets/DelaGothicOne-Regular.ttf');
+        @import url('https://assets-persist.lovart.ai/agent-static-assets/AlibabaSans-Medium.otf');
+        @import url('https://assets-persist.lovart.ai/agent-static-assets/MiSans-Bold.ttf');
+
+        :root {
+            --player-color: #00f2ff;
+            --enemy-color: #ff2a2a;
+            --bg-dark: #0a0a0a;
+            --ui-yellow: #ccff00;
+            --font-main: 'Dela Gothic One', sans-serif;
+            --font-sub: 'Alibaba Sans', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            font-family: var(--font-sub);
+            color: white;
+            user-select: none;
+        }
+
+        /* --- GAME CONTAINER & STAGE --- */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .background-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            transition: background 0.5s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Stage Backgrounds */
+        #stage-bg {
+            background: linear-gradient(to bottom, #2b0a3d 0%, #ff5e00 60%, #1a1a1a 60%, #000 100%); /* Default Rooftop */
+        }
+
+        .floor {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 200px;
+            background: repeating-linear-gradient(
+                90deg,
+                #1a1a1a,
+                #1a1a1a 50px,
+                #222 50px,
+                #222 100px
+            );
+            perspective: 1000px;
+            z-index: 2;
+            box-shadow: 0 -10px 50px rgba(0,0,0,0.8);
+            border-top: 4px solid var(--ui-yellow);
+        }
+
+        /* --- UI HUD --- */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            z-index: 100;
+            padding: 20px 50px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+
+        .health-container {
+            width: 40%;
+            position: relative;
+        }
+
+        .health-bar-frame {
+            height: 40px;
+            background: #333;
+            border: 2px solid white;
+            transform: skewX(-20deg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .health-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #p1-health { background: linear-gradient(90deg, #00c6ff, #0072ff); float: right; }
+        #p2-health { background: linear-gradient(90deg, #ff0f7b, #f89b29); }
+
+        .name-tag {
+            font-family: var(--font-main);
+            font-size: 24px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .rounds-wins {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .win-dot {
+            width: 15px;
+            height: 15px;
+            background: #333;
+            border-radius: 50%;
+            border: 1px solid #666;
+        }
+        .win-dot.active { background: var(--ui-yellow); box-shadow: 0 0 10px var(--ui-yellow); }
+
+        #timer-container {
+            width: 100px;
+            height: 100px;
+            background: rgba(0,0,0,0.8);
+            border: 3px solid var(--ui-yellow);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-main);
+            font-size: 60px;
+            color: var(--ui-yellow);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 20px;
+            z-index: 101;
+        }
+
+        #stage-indicator {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--font-sub);
+            font-weight: bold;
+            font-size: 18px;
+            background: #000;
+            padding: 5px 20px;
+            border: 1px solid white;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        /* --- CHARACTERS --- */
+        .character {
+            position: absolute;
+            bottom: 120px; /* On floor */
+            width: 120px;
+            height: 250px; /* Taller blocky proportion */
+            z-index: 10;
+            transform-origin: bottom center;
+        }
+
+        /* Block Geometry Construction */
+        .char-part {
+            position: absolute;
+            background: #fff;
+            border: 2px solid #000;
+            box-sizing: border-box;
+            transform-origin: center top;
+        }
+
+        /* Generic Structure */
+        .head {
+            width: 50px;
+            height: 50px;
+            left: 35px;
+            top: 0;
+            z-index: 5;
+        }
+        .torso {
+            width: 70px;
+            height: 90px;
+            left: 25px;
+            top: 50px;
+            z-index: 4;
+        }
+        .arm {
+            width: 25px;
+            height: 90px;
+            top: 55px;
+            z-index: 6;
+            transform-origin: top center;
+        }
+        .arm.left { left: 0; }
+        .arm.right { right: 0; }
+
+        .leg {
+            width: 30px;
+            height: 110px;
+            top: 140px;
+            z-index: 3;
+            transform-origin: top center;
+        }
+        .leg.left { left: 25px; }
+        .leg.right { right: 25px; }
+
+        /* Player Colors (Blue Theme) */
+        #player .char-part { background: var(--player-color); border-color: #005f6b; box-shadow: inset 5px 5px 0 rgba(255,255,255,0.3); }
+        #player .head { background: #e0f7fa; } /* Lighter face */
+
+        /* Enemy Colors (Dynamic) */
+        #enemy .char-part { background: var(--enemy-color); border-color: #5a0000; box-shadow: inset 5px 5px 0 rgba(255,255,255,0.3); }
+        #enemy .head { background: #ffe0e0; }
+
+        /* --- ANIMATIONS (CSS Keyframes applied via JS classes) --- */
+
+        /* Idle */
+        @keyframes idle {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(2px) scaleY(0.98); }
+        }
+        .anim-idle { animation: idle 1s infinite ease-in-out; }
+
+        /* Walk */
+        @keyframes walk {
+            0% { transform: translateX(0); }
+            25% { transform: translateY(-5px) rotate(2deg); }
+            50% { transform: translateX(0); }
+            75% { transform: translateY(-5px) rotate(-2deg); }
+            100% { transform: translateX(0); }
+        }
+        .anim-walk { animation: walk 0.5s infinite linear; }
+
+        /* Hit Stun */
+        @keyframes hit-stun {
+            0% { transform: translateX(-10px) rotate(-5deg); filter: brightness(2); }
+            20% { transform: translateX(5px) rotate(5deg); }
+            40% { transform: translateX(-5px); }
+            100% { transform: translateX(0) rotate(0); filter: brightness(1); }
+        }
+        .anim-hit { animation: hit-stun 0.4s ease-out; }
+
+        /* Knockdown */
+        @keyframes knockdown {
+            0% { transform: rotate(0); }
+            20% { transform: rotate(-45deg) translateY(-20px); }
+            100% { transform: rotate(-90deg) translateY(50px); }
+        }
+        .anim-knockdown { animation: knockdown 0.5s forwards ease-in; }
+
+        /* Attack Extensions (Class based transforms) */
+        .punch-extend-left .arm.left { transform: rotate(-80deg) scaleX(1.5) !important; transition: 0.1s; }
+        .punch-extend-right .arm.right { transform: rotate(-80deg) scaleX(1.5) !important; transition: 0.1s; }
+        .kick-extend .leg.right { transform: rotate(-80deg) scaleY(1.2) translateY(-20px) !important; transition: 0.1s; }
+
+        /* Enemy Mirrored Attacks */
+        .enemy-punch .arm.left { transform: rotate(80deg) scaleX(1.5) !important; transition: 0.1s; }
+
+        /* --- VISUAL EFFECTS --- */
+        .vfx-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .damage-number {
+            position: absolute;
+            font-family: var(--font-main);
+            font-size: 40px;
+            color: #fff;
+            text-shadow: 2px 2px 0 #ff0000;
+            animation: floatUp 0.8s forwards;
+            pointer-events: none;
+            z-index: 60;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { transform: translateY(-30px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-60px) scale(1); opacity: 0; }
+        }
+
+        .hit-spark {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #fff 20%, yellow 40%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 55;
+            mix-blend-mode: screen;
+        }
+        .spark-anim { animation: spark 0.2s linear forwards; }
+
+        @keyframes spark {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+        }
+
+        #screen-flash {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 200;
+        }
+        .flash-anim { animation: flash 0.1s ease-out; }
+        @keyframes flash { 0% { opacity: 0.5; } 100% { opacity: 0; } }
+
+        /* --- OVERLAYS --- */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.85);
+            z-index: 300;
+            color: white;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+
+        .overlay h1 {
+            font-family: var(--font-main);
+            font-size: 120px;
+            margin: 0;
+            color: var(--ui-yellow);
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0 #ff0055;
+            animation: textPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .overlay p {
+            font-size: 30px;
+            margin-top: 20px;
+            font-family: var(--font-sub);
+        }
+
+        .btn {
+            margin-top: 40px;
+            padding: 15px 40px;
+            font-family: var(--font-main);
+            font-size: 24px;
+            background: var(--ui-yellow);
+            color: #000;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            transform: skewX(-10deg);
+            transition: 0.2s;
+        }
+        .btn:hover { background: #fff; transform: skewX(-10deg) scale(1.1); }
+
+        @keyframes textPop {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        #combo-counter {
+            position: absolute;
+            left: 50px;
+            top: 200px;
+            font-family: var(--font-main);
+            font-style: italic;
+            color: var(--ui-yellow);
+            text-shadow: 2px 2px #000;
+            display: none;
+            z-index: 80;
+        }
+        #combo-num { font-size: 80px; line-height: 1; display: block; }
+        #combo-text { font-size: 30px; letter-spacing: 2px; }
+
+        /* Controls Guide */
+        #controls-guide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 30px;
+            border-radius: 30px;
+            border: 1px solid #444;
+            z-index: 90;
+        }
+        .key-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        .key-box {
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            border-bottom: 2px solid #111;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Audio Placeholders (Simulated Logic) -->
+
+        <!-- Backgrounds -->
+        <div id="stage-bg" class="background-layer"></div>
+        <div class="floor"></div>
+
+        <!-- HUD -->
+        <div id="hud">
+            <!-- Player Health -->
+            <div class="health-container">
+                <span class="name-tag" style="color: var(--player-color)">Player</span>
+                <div class="health-bar-frame">
+                    <div id="p1-health" class="health-fill" style="width: 100%;"></div>
+                </div>
+                <div class="rounds-wins" id="p1-wins">
+                    <div class="win-dot"></div><div class="win-dot"></div>
+                </div>
+            </div>
+
+            <!-- Timer -->
+            <div id="timer-container">60</div>
+            <div id="stage-indicator">Stage 1: Rooftop</div>
+
+            <!-- Enemy Health -->
+            <div class="health-container" style="text-align: right;">
+                <span class="name-tag" style="color: var(--enemy-color)" id="enemy-name">Red Fighter</span>
+                <div class="health-bar-frame">
+                    <div id="p2-health" class="health-fill" style="width: 100%;"></div>
+                </div>
+                <div class="rounds-wins" style="justify-content: flex-end;" id="p2-wins">
+                    <div class="win-dot"></div><div class="win-dot"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Combo Counter -->
+        <div id="combo-counter">
+            <span id="combo-num">3</span>
+            <span id="combo-text">HITS</span>
+        </div>
+
+        <!-- Visual Effects Layer -->
+        <div id="screen-flash"></div>
+        <div class="vfx-container" id="vfx-layer"></div>
+
+        <!-- Characters -->
+        <div id="player" class="character anim-idle" style="left: 300px;">
+            <div class="char-part head"></div>
+            <div class="char-part torso"></div>
+            <div class="char-part arm left"></div>
+            <div class="char-part arm right"></div>
+            <div class="char-part leg left"></div>
+            <div class="char-part leg right"></div>
+        </div>
+
+        <div id="enemy" class="character anim-idle" style="right: 300px; transform: scaleX(-1);">
+            <div class="char-part head"></div>
+            <div class="char-part torso"></div>
+            <div class="char-part arm left"></div>
+            <div class="char-part arm right"></div>
+            <div class="char-part leg left"></div>
+            <div class="char-part leg right"></div>
+        </div>
+
+        <!-- Overlays -->
+        <div id="msg-overlay" class="overlay">
+            <h1 id="msg-title">ROUND 1</h1>
+            <p id="msg-sub">FIGHT!</p>
+        </div>
+
+        <div id="menu-overlay" class="overlay">
+            <h1 id="menu-title">BLOCK TEKKEN</h1>
+            <button class="btn" onclick="startGame()">START GAME</button>
+        </div>
+
+        <!-- Controls -->
+        <div id="controls-guide">
+            <div class="key-hint"><span class="key-box">A</span><span class="key-box">D</span> Move</div>
+            <div class="key-hint"><span class="key-box">W</span> Jump</div>
+            <div class="key-hint"><span class="key-box">J</span> Punch</div>
+            <div class="key-hint"><span class="key-box">K</span> Kick</div>
+            <div class="key-hint"><span class="key-box">L</span> Heavy</div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME ENGINE CONSTANTS ---
+        const STAGE_WIDTH = 1920;
+        const GROUND_Y = 120;
+        const HITBOX_RANGE = 200; // Attack range
+
+        // --- GAME STATE ---
+        let state = {
+            player: { x: 400, y: 0, hp: 100, isAttacking: false, isHit: false, wins: 0, combo: 0 },
+            enemy: { x: 1400, y: 0, hp: 100, isAttacking: false, isHit: false, wins: 0, type: 1 },
+            game: { stage: 1, round: 1, timer: 60, active: false, paused: false }
+        };
+
+        const stages = [
+            { id: 1, name: "City Rooftop", color: "#ff2a2a", bg: "linear-gradient(to bottom, #2b0a3d, #ff5e00 60%, #111)" },
+            { id: 2, name: "Ancient Dojo", color: "#2aff2a", bg: "linear-gradient(to bottom, #87CEEB, #e0f7fa 50%, #d4a76a 50%, #3e2723)" },
+            { id: 3, name: "Underground", color: "#ff8c00", bg: "radial-gradient(circle, #220033 0%, #000 90%)" },
+            { id: 4, name: "Volcano", color: "#800080", bg: "linear-gradient(to bottom, #330000, #ff0000 80%, #000)" }
+        ];
+
+        // --- DOM ELEMENTS ---
+        const playerEl = document.getElementById('player');
+        const enemyEl = document.getElementById('enemy');
+        const p1HealthBar = document.getElementById('p1-health');
+        const p2HealthBar = document.getElementById('p2-health');
+        const timerEl = document.getElementById('timer-container');
+        const vfxLayer = document.getElementById('vfx-layer');
+        const comboEl = document.getElementById('combo-counter');
+        const msgOverlay = document.getElementById('msg-overlay');
+        const menuOverlay = document.getElementById('menu-overlay');
+
+        // --- AUDIO SYSTEM (Visual only for this task) ---
+        function playSound(type) {
+            // Placeholder for sound logic
+        }
+
+        // --- INPUT HANDLING ---
+        const keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if(!state.game.active) return;
+
+            if (!state.player.isAttacking && !state.player.isHit) {
+                if (e.key === 'j') attack('punch', 10, 'light');
+                if (e.key === 'k') attack('kick', 15, 'light');
+                if (e.key === 'l') attack('heavy', 25, 'heavy');
+                if (e.key === ' ') jump();
+            }
+        });
+        window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+        // --- GAME LOOP ---
+        let gameLoop;
+        let enemyAiLoop;
+
+        function startGame() {
+            menuOverlay.style.display = 'none';
+            resetStage(1);
+            gameLoop = requestAnimationFrame(update);
+            startRound();
+        }
+
+        function startRound() {
+            state.game.active = false;
+            state.game.timer = 60;
+            state.player.hp = 100;
+            state.enemy.hp = state.game.stage === 4 ? 150 : 100; // Boss HP
+            state.player.x = 400;
+            state.enemy.x = 1400;
+            updateUI();
+
+            msgOverlay.style.display = 'flex';
+            document.getElementById('msg-title').innerText = `ROUND ${state.game.round}`;
+            document.getElementById('msg-sub').innerText = "READY?";
+
+            setTimeout(() => {
+                document.getElementById('msg-sub').innerText = "FIGHT!";
+                playSound('fight');
+                setTimeout(() => {
+                    msgOverlay.style.display = 'none';
+                    state.game.active = true;
+                    startAI();
+                }, 1000);
+            }, 1500);
+        }
+
+        function update() {
+            if (!state.game.paused) {
+                movePlayer();
+                updatePositions();
+
+                // Simple Gravity
+                // (Omitted for simplicity, assuming 2.5D plane movement mostly)
+            }
+            requestAnimationFrame(update);
+        }
+
+        function movePlayer() {
+            if (state.player.isAttacking || state.player.isHit || !state.game.active) return;
+
+            const speed = 8;
+            if (keys['a'] && state.player.x > 50) {
+                state.player.x -= speed;
+                playerEl.classList.add('anim-walk');
+            } else if (keys['d'] && state.player.x < state.enemy.x - 80) { // Collision check
+                state.player.x += speed;
+                playerEl.classList.add('anim-walk');
+            } else {
+                playerEl.classList.remove('anim-walk');
+            }
+        }
+
+        function updatePositions() {
+            playerEl.style.left = `${state.player.x}px`;
+            enemyEl.style.left = `${state.enemy.x}px`; // Enemy uses left positioning but flipped
+        }
+
+        function jump() {
+            // Simple jump animation logic
+            playerEl.style.transition = "transform 0.3s ease-out";
+            playerEl.style.transform = "translateY(-150px)";
+            setTimeout(() => {
+                playerEl.style.transition = "transform 0.3s ease-in";
+                playerEl.style.transform = "translateY(0)";
+            }, 300);
+        }
+
+        // --- COMBAT SYSTEM ---
+        function attack(type, damage, weight) {
+            state.player.isAttacking = true;
+
+            // Visual Animation
+            if (type === 'punch') {
+                playerEl.classList.add('punch-extend-right');
+                setTimeout(() => playerEl.classList.remove('punch-extend-right'), 200);
+            } else if (type === 'kick') {
+                playerEl.classList.add('kick-extend');
+                setTimeout(() => playerEl.classList.remove('kick-extend'), 300);
+            } else {
+                // Heavy
+                playerEl.classList.add('punch-extend-left'); // Uses other arm
+                playerEl.classList.add('punch-extend-right'); // Both arms?
+                setTimeout(() => {
+                    playerEl.classList.remove('punch-extend-left');
+                    playerEl.classList.remove('punch-extend-right');
+                }, 500);
+            }
+
+            // Hit Detection
+            setTimeout(() => {
+                const dist = Math.abs(state.player.x - state.enemy.x);
+                if (dist < HITBOX_RANGE) {
+                    hitEnemy(damage, weight);
+                }
+                state.player.isAttacking = false;
+            }, 100);
+        }
+
+        function hitEnemy(damage, weight) {
+            if (state.enemy.isHit) return; // No juggling for simplicity
+
+            state.enemy.hp -= damage;
+            state.enemy.isHit = true;
+            state.player.combo++;
+
+            // Combo UI
+            if (state.player.combo > 1) {
+                comboEl.style.display = 'block';
+                document.getElementById('combo-num').innerText = state.player.combo;
+                comboEl.classList.add('pop'); // Add pop animation class
+                setTimeout(() => comboEl.classList.remove('pop'), 100);
+            }
+            clearTimeout(window.comboTimer);
+            window.comboTimer = setTimeout(() => {
+                state.player.combo = 0;
+                comboEl.style.display = 'none';
+            }, 2000);
+
+            // Visual FX
+            createSpark(state.enemy.x + 40, state.player.y + 100); // Hit spark center mass
+            createDamageNumber(damage, state.enemy.x, state.player.y + 50);
+            screenShake(weight === 'heavy' ? 20 : 5);
+
+            // Enemy Reaction
+            enemyEl.classList.add('anim-hit');
+            updateUI();
+
+            // Knockback
+            const knockback = weight === 'heavy' ? 100 : 30;
+            state.enemy.x += knockback;
+            if (state.enemy.x > STAGE_WIDTH - 100) state.enemy.x = STAGE_WIDTH - 100;
+
+            if (state.enemy.hp <= 0) {
+                knockout('PLAYER');
+            } else {
+                setTimeout(() => {
+                    enemyEl.classList.remove('anim-hit');
+                    state.enemy.isHit = false;
+                }, 400);
+            }
+        }
+
+        function createSpark(x, y) {
+            const spark = document.createElement('div');
+            spark.className = 'hit-spark spark-anim';
+            spark.style.left = x + 'px';
+            spark.style.top = 250 + 'px'; // Height adjustment relative to container
+            vfxLayer.appendChild(spark);
+            setTimeout(() => spark.remove(), 250);
+        }
+
+        function createDamageNumber(dmg, x, y) {
+            const el = document.createElement('div');
+            el.className = 'damage-number';
+            el.innerText = dmg;
+            el.style.left = x + 'px';
+            el.style.top = 200 + 'px';
+            vfxLayer.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function screenShake(intensity) {
+            const container = document.getElementById('game-container');
+            container.style.transform = `translate(${Math.random()*intensity - intensity/2}px, ${Math.random()*intensity - intensity/2}px)`;
+            setTimeout(() => {
+                container.style.transform = 'none';
+            }, 100);
+
+            if (intensity > 10) {
+                const flash = document.getElementById('screen-flash');
+                flash.classList.add('flash-anim');
+                setTimeout(() => flash.classList.remove('flash-anim'), 100);
+            }
+        }
+
+        // --- ENEMY AI ---
+        function startAI() {
+            if (enemyAiLoop) clearInterval(enemyAiLoop);
+
+            // Difficulty scaling
+            const reactionTime = Math.max(300, 1000 - (state.game.stage * 200));
+
+            enemyAiLoop = setInterval(() => {
+                if (!state.game.active || state.enemy.isHit) return;
+
+                const dist = Math.abs(state.enemy.x - state.player.x);
+
+                if (dist > HITBOX_RANGE - 50) {
+                    // Move towards player
+                    state.enemy.x -= 20;
+                    enemyEl.classList.add('anim-walk');
+                    setTimeout(() => enemyEl.classList.remove('anim-walk'), 200);
+                } else {
+                    // Attack chance
+                    if (Math.random() > 0.4) {
+                        enemyAttack();
+                    }
+                }
+            }, reactionTime);
+        }
+
+        function enemyAttack() {
+            state.enemy.isAttacking = true;
+            enemyEl.classList.add('enemy-punch');
+
+            setTimeout(() => {
+                enemyEl.classList.remove('enemy-punch');
+                state.enemy.isAttacking = false;
+
+                // Hit check on player
+                const dist = Math.abs(state.enemy.x - state.player.x);
+                if (dist < HITBOX_RANGE && !keys['a']) { // Assuming A is block/back
+                    hitPlayer(10);
+                } else if (keys['a']) {
+                    // Blocked
+                    createSpark(state.player.x + 40, 250); // Blue spark for block?
+                }
+            }, 300);
+        }
+
+        function hitPlayer(damage) {
+            if (state.player.isHit) return;
+
+            state.player.hp -= damage;
+            state.player.isHit = true;
+
+            playerEl.classList.add('anim-hit');
+            screenShake(10);
+            createDamageNumber(damage, state.player.x, 200);
+            updateUI();
+
+            state.player.x -= 30; // Knockback
+
+            if (state.player.hp <= 0) {
+                knockout('ENEMY');
+            } else {
+                setTimeout(() => {
+                    playerEl.classList.remove('anim-hit');
+                    state.player.isHit = false;
+                }, 400);
+            }
+        }
+
+        // --- GAME LOGIC UTILS ---
+        function updateUI() {
+            // Health Widths
+            const p1Pct = Math.max(0, (state.player.hp / 100) * 100);
+            const p2Max = state.game.stage === 4 ? 150 : 100;
+            const p2Pct = Math.max(0, (state.enemy.hp / p2Max) * 100);
+
+            p1HealthBar.style.width = `${p1Pct}%`;
+            p2HealthBar.style.width = `${p2Pct}%`;
+
+            // Colors based on HP
+            if (p1Pct < 30) p1HealthBar.style.background = "#ff0000";
+            else p1HealthBar.style.background = "linear-gradient(90deg, #00c6ff, #0072ff)";
+
+            // Rounds
+            const p1Dots = document.getElementById('p1-wins').children;
+            const p2Dots = document.getElementById('p2-wins').children;
+
+            for(let i=0; i<2; i++) {
+                p1Dots[i].className = i < state.player.wins ? 'win-dot active' : 'win-dot';
+                p2Dots[i].className = i < state.enemy.wins ? 'win-dot active' : 'win-dot';
+            }
+        }
+
+        function knockout(winner) {
+            state.game.active = false;
+            clearInterval(enemyAiLoop);
+
+            msgOverlay.style.display = 'flex';
+            document.getElementById('msg-title').innerText = "K.O.";
+            document.getElementById('msg-sub').innerText = winner === 'PLAYER' ? "YOU WIN" : "YOU LOSE";
+
+            // Death Anim
+            if (winner === 'PLAYER') {
+                enemyEl.classList.add('anim-knockdown');
+                state.player.wins++;
+            } else {
+                playerEl.classList.add('anim-knockdown');
+                state.enemy.wins++;
+            }
+            updateUI();
+
+            setTimeout(() => {
+                checkMatchStatus();
+            }, 3000);
+        }
+
+        function checkMatchStatus() {
+            // Reset anims
+            playerEl.classList.remove('anim-knockdown');
+            enemyEl.classList.remove('anim-knockdown');
+
+            if (state.player.wins >= 2) {
+                // Stage Clear
+                if (state.game.stage >= 4) {
+                    gameComplete();
+                } else {
+                    nextStage();
+                }
+            } else if (state.enemy.wins >= 2) {
+                gameOver();
+            } else {
+                // Next Round
+                state.game.round++;
+                startRound();
+            }
+        }
+
+        function nextStage() {
+            state.game.stage++;
+            state.game.round = 1;
+            state.player.wins = 0;
+            state.enemy.wins = 0;
+            resetStage(state.game.stage);
+
+            msgOverlay.style.display = 'flex';
+            document.getElementById('msg-title').innerText = "STAGE CLEAR";
+            document.getElementById('msg-sub').innerText = "ADVANCING TO NEXT ARENA...";
+
+            setTimeout(() => {
+                startRound();
+            }, 2000);
+        }
+
+        function resetStage(stageNum) {
+            const data = stages[stageNum-1];
+
+            // Set BG
+            document.getElementById('stage-bg').style.background = data.bg;
+            document.getElementById('stage-indicator').innerText = `STAGE ${stageNum}: ${data.name}`;
+
+            // Set Enemy Color
+            document.documentElement.style.setProperty('--enemy-color', data.color);
+            document.getElementById('enemy-name').innerText = stageNum === 4 ? "BOSS" : "FIGHTER " + stageNum;
+
+            if (stageNum === 4) {
+                // Boss Scale
+                enemyEl.style.transform = "scaleX(-1) scale(1.2)";
+                enemyEl.style.filter = "drop-shadow(0 0 10px #800080)";
+            } else {
+                enemyEl.style.transform = "scaleX(-1)";
+                enemyEl.style.filter = "none";
+            }
+        }
+
+        function gameOver() {
+            msgOverlay.style.display = 'flex';
+            document.getElementById('msg-title').innerText = "GAME OVER";
+            document.getElementById('msg-sub').innerText = "Refresh to Try Again";
+            // Simple refresh logic for this demo
+        }
+
+        function gameComplete() {
+            msgOverlay.style.display = 'flex';
+            document.getElementById('msg-title').innerText = "CHAMPION!";
+            document.getElementById('msg-sub').innerText = "YOU DEFEATED THE BLOCK BOSS";
+        }
+
+        // Timer Logic
+        setInterval(() => {
+            if (state.game.active && state.game.timer > 0) {
+                state.game.timer--;
+                timerEl.innerText = state.game.timer;
+                if (state.game.timer === 0) {
+                    // Time Over Logic (Determine winner by HP)
+                    if (state.player.hp > state.enemy.hp) knockout('PLAYER');
+                    else knockout('ENEMY');
+                }
+            }
+        }, 1000);
+
+        // Initial setup
+        menuOverlay.style.display = 'flex';
+
+    </script>
+</body>
+</html>

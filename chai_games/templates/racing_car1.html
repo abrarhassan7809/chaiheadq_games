@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Racing - Pro Edition</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --primary: #00D4FF;
+            --accent: #B800FF;
+            --dark: #0A0A0F;
+            --glass: rgba(0, 0, 0, 0.8);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Orbitron', sans-serif;
+            color: #fff;
+            position: relative;
+        }
+
+        /* Canvas & Game World */
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: high-quality;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none; /* Hidden on menu */
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,30,0.8) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-left: 4px solid var(--primary);
+            padding: 15px 30px;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transform: skewX(-10deg);
+        }
+
+        .hud-panel span {
+            display: block;
+            transform: skewX(10deg);
+        }
+
+        .hud-label {
+            font-size: 14px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .hud-value {
+            font-size: 36px;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        #hud-speed { bottom: 40px; right: 40px; text-align: right; border-left: none; border-right: 4px solid var(--primary); }
+        #hud-lap { top: 40px; left: 40px; }
+        #hud-pos { top: 40px; right: 40px; border-left: none; border-right: 4px solid var(--accent); }
+        #hud-pos .hud-value { color: var(--accent); text-shadow: 0 0 10px rgba(184, 0, 255, 0.5); }
+        #hud-time { top: 40px; left: 50%; transform: translateX(-50%) skewX(-10deg); border-left: 4px solid #fff; }
+
+        /* Overlays */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #050510 0%, #1a1a2e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 120px;
+            font-weight: 900;
+            font-style: italic;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h2 {
+            font-size: 48px;
+            color: var(--primary);
+            margin-bottom: 60px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 20px 60px;
+            font-size: 24px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            margin: 10px;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+        }
+
+        #countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 200px;
+            font-weight: 900;
+            font-style: italic;
+            color: #fff;
+            text-shadow: 0 0 50px rgba(0,0,0,0.8);
+            z-index: 50;
+            display: none;
+        }
+
+        /* Mobile Controls Hints */
+        .controls-hint {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stat-row {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-val {
+            font-size: 32px;
+            color: #fff;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div id="hud-lap" class="hud-panel">
+            <span>
+                <div class="hud-label">Lap</div>
+                <div class="hud-value" id="lapVal">1 / 3</div>
+            </span>
+        </div>
+
+        <div id="hud-time" class="hud-panel">
+            <span>
+                <div class="hud-label">Time</div>
+                <div class="hud-value" id="timeVal">00:00.00</div>
+            </span>
+        </div>
+
+        <div id="hud-pos" class="hud-panel">
+            <span>
+                <div class="hud-label">Pos</div>
+                <div class="hud-value" id="posVal">4th</div>
+            </span>
+        </div>
+
+        <div id="hud-speed" class="hud-panel">
+            <span>
+                <div class="hud-label">Speed</div>
+                <div class="hud-value"><span id="speedVal" style="display:inline">0</span> <span style="font-size:18px">KM/H</span></div>
+            </span>
+        </div>
+    </div>
+
+    <!-- Countdown -->
+    <div id="countdown">3</div>
+
+    <!-- Menu Screen -->
+    <div id="menuScreen" class="screen">
+        <h1>NITRO APEX</h1>
+        <h2>Championship Edition</h2>
+        <button class="btn" onclick="game.startCountdown()">START RACE</button>
+        <div class="controls-hint">Use Arrow Keys to Drive • Space to Brake</div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="resultsScreen" class="screen hidden">
+        <h1>FINISHED!</h1>
+        <div class="stat-row">
+            <div class="stat-item">
+                <span class="stat-label">POSITION</span>
+                <span class="stat-val" id="resPos">1st</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">BEST TIME</span>
+                <span class="stat-val" id="resTime">00:00.00</span>
+            </div>
+        </div>
+        <button class="btn" onclick="location.reload()">RACE AGAIN</button>
+    </div>
+</div>
+
+<script>
+/**
+ * ULTRA-REALISTIC RACING ENGINE
+ *
+ * Features:
+ * - 3D Perspective Projection
+ * - Smooth Curve Rendering
+ * - Detailed Isometric Car Sprites (Generated via Canvas API)
+ * - AI Opponents
+ * - Physics-based movement
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for speed
+const width = 1920;
+const height = 1080;
+
+// Game Constants
+const FPS = 60;
+const STEP = 1/FPS;
+const SEGMENT_LENGTH = 200; // Length of a single road segment
+const DRAW_DISTANCE = 300;  // How many segments to draw ahead
+const ROAD_WIDTH = 2000;    // Logical width of road
+const LANES = 3;
+
+// Game State
+const game = {
+    running: false,
+    dt: 0,
+    lastTime: 0,
+    segments: [],
+    cars: [],
+    player: null,
+    cameraDepth: 0.84, // Controls FOV effect
+    trackLength: 0,
+    lap: 1,
+    totalLaps: 3,
+    raceTime: 0,
+    position: 4,
+    finished: false
+};
+
+// Utils
+const formatTime = (dt) => {
+    const minutes = Math.floor(dt / 60);
+    const seconds = Math.floor(dt - (minutes * 60));
+    const tenths = Math.floor(10 * (dt - Math.floor(dt)));
+    if (minutes > 0)
+        return minutes + "." + (seconds < 10 ? "0" : "") + seconds + "." + tenths;
+    else
+        return seconds + "." + tenths + "0";
+};
+
+class RoadSegment {
+    constructor(index) {
+        this.index = index;
+        this.p1 = { world: { x: 0, y: 0, z: index * SEGMENT_LENGTH }, camera: {}, screen: {} };
+        this.p2 = { world: { x: 0, y: 0, z: (index + 1) * SEGMENT_LENGTH }, camera: {}, screen: {} };
+        this.curve = 0;
+        this.slope = 0;
+        this.color = { road: '', grass: '', rumble: '', lane: '' };
+        this.sprites = [];
+        this.cars = [];
+    }
+}
+
+class Car {
+    constructor(offset, z, sprite, speed) {
+        this.offset = offset; // -1 to 1 (lane position)
+        this.z = z;
+        this.speed = speed;
+        this.maxSpeed = speed;
+        this.sprite = sprite; // 'player', 'ai1', 'ai2', 'ai3'
+        this.percent = 0; // % complete of current segment
+        this.color = '#fff';
+        this.width = 0; // Visual width
+        this.height = 0; // Visual height
+        this.turnAngle = 0; // For visual leaning
+    }
+
+    update(dt) {
+        // AI Logic: simple lane holding
+        this.z += this.speed * dt;
+        while (this.z >= game.trackLength) this.z -= game.trackLength;
+        while (this.z < 0) this.z += game.trackLength;
+    }
+}
+
+class Player extends Car {
+    constructor() {
+        super(0, 0, 'player', 0);
+        this.maxSpeed = 12000; // Max speed units
+        this.accel =  this.maxSpeed / 5;
+        this.breaking = -this.maxSpeed;
+        this.decel = -this.maxSpeed / 5;
+        this.offRoadDecel = -this.maxSpeed / 2;
+        this.offRoadLimit = this.maxSpeed / 4;
+        this.turnSpeed = 2500; // Steering sensitivity
+    }
+
+    update(dt, input) {
+        // Acceleration
+        if (input.up) this.speed += this.accel * dt;
+        else if (input.down) this.speed += this.breaking * dt;
+        else this.speed += this.decel * dt;
+
+        // Steering (affected by speed ratio)
+        const speedRatio = this.speed / this.maxSpeed;
+        this.turnAngle = 0;
+
+        const steerAmount = dt * (this.turnSpeed * speedRatio) * 0.001; // 🔥 reduced
+
+        if (input.left) {
+            this.offset -= steerAmount;
+            this.turnAngle = -12 * speedRatio;
+        }
+        else if (input.right) {
+            this.offset += steerAmount;
+            this.turnAngle = 12 * speedRatio;
+        } else {
+            // Return to center lean
+            this.turnAngle = 0;
+        }
+
+        // Clamp lane position tightly
+        this.offset = Math.max(-0.8, Math.min(0.8, this.offset));
+
+        // Off-road physics
+        if ((this.offset < -1) || (this.offset > 1)) {
+            if (this.speed > this.offRoadLimit)
+                this.speed += this.offRoadDecel * dt;
+
+            // Camera shake if offroad
+            // (Simulated in render)
+        }
+
+        // Clamp speed
+        this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
+
+        // Move forward
+        this.z += this.speed * dt;
+
+        // Lap logic
+        if (this.z >= game.trackLength) {
+            this.z -= game.trackLength;
+            game.lap++;
+            if(game.lap > game.totalLaps && !game.finished) {
+                endGame();
+            }
+            document.getElementById('lapVal').innerText = Math.min(game.lap, game.totalLaps) + " / " + game.totalLaps;
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// RENDERING FUNCTIONS
+// ---------------------------------------------------------
+
+function project(p, cameraX, cameraY, cameraZ, cameraDepth, width, height, roadWidth) {
+    p.camera.x = (p.world.x || 0) - cameraX;
+    p.camera.y = (p.world.y || 0) - cameraY;
+    p.camera.z = (p.world.z || 0) - cameraZ;
+
+    // Looping track logic (if camera is far ahead of point)
+    if (p.camera.z < 0) {
+        p.camera.z += game.trackLength; // Should handle this earlier ideally, but simple projection fix
+    }
+
+    p.screen.scale = cameraDepth / p.camera.z;
+    p.screen.x = Math.round((width / 2) + (p.screen.scale * p.camera.x * width / 2));
+    p.screen.y = Math.round((height / 2) - (p.screen.scale * p.camera.y * height / 2));
+    p.screen.w = Math.round((p.screen.scale * roadWidth * width / 2));
+}
+
+function renderPolygon(ctx, x1, y1, x2, y2, x3, y3, x4, y4, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.lineTo(x4, y4);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawCar(ctx, car, x, y, scale, segment, alpha = 1) {
+    // Determine sprite drawing size
+    const spriteW = 220 * scale; // Base width scaled
+    const spriteH = 160 * scale; // Base height scaled
+
+    const destX = x - spriteW / 2;
+    const destY = y - spriteH; // Draw upwards from ground point
+
+    // Save context for rotation/effects
+    ctx.save();
+
+    // Apply global alpha for fade distance
+    ctx.globalAlpha = alpha;
+
+    // Translate to center bottom of car for pivot
+    ctx.translate(x, y);
+
+    // Apply lean/turn
+    // Simple 2D rotation for banking
+    let lean = 0;
+    if (car === game.player) {
+        lean = game.player.turnAngle * (Math.PI / 180);
+    } else {
+        // Simple AI lean based on curve
+        lean = segment.curve * 0.5;
+    }
+
+    // Draw Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(0, -10 * scale, spriteW/2, spriteW/5, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Rotate chassis
+    ctx.rotate(lean);
+
+    // --- PROCEDURAL CAR DRAWING ---
+    // This replaces image sprites to ensure it's self-contained and high quality
+
+    const bodyColor = car.color || '#fff';
+    const darkBody = shadeColor(bodyColor, -40);
+    const lightBody = shadeColor(bodyColor, 40);
+
+    const w = spriteW;
+    const h = spriteH;
+
+    // 1. Wheels
+    ctx.fillStyle = '#111';
+    // Rear L
+    ctx.fillRect(-w*0.45, -h*0.3, w*0.2, h*0.3);
+    // Rear R
+    ctx.fillRect(w*0.25, -h*0.3, w*0.2, h*0.3);
+
+    // 2. Chassis Main Body (Lower)
+    ctx.fillStyle = darkBody;
+    // Trapezoid shape for rear view perspective
+    ctx.beginPath();
+    ctx.moveTo(-w*0.4, -h*0.2);
+    ctx.lineTo(w*0.4, -h*0.2);
+    ctx.lineTo(w*0.45, -h*0.5);
+    ctx.lineTo(-w*0.45, -h*0.5);
+    ctx.fill();
+
+    // 3. Bumper / Rear area
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-w*0.35, -h*0.25, w*0.7, h*0.1);
+
+    // Taillights
+    ctx.fillStyle = '#ff0000';
+    ctx.shadowColor = '#ff0000';
+    ctx.shadowBlur = 10 * scale;
+    ctx.fillRect(-w*0.3, -h*0.22, w*0.1, h*0.05);
+    ctx.fillRect(w*0.2, -h*0.22, w*0.1, h*0.05);
+    ctx.shadowBlur = 0; // reset
+
+    // 4. Upper Body / Trunk
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.45, -h*0.5);
+    ctx.lineTo(w*0.45, -h*0.5);
+    ctx.lineTo(w*0.4, -h*0.7);
+    ctx.lineTo(-w*0.4, -h*0.7);
+    ctx.fill();
+
+    // 5. Roof / Cabin
+    ctx.fillStyle = darkBody; // Darker for cabin sides
+    ctx.beginPath();
+    ctx.moveTo(-w*0.4, -h*0.7);
+    ctx.lineTo(w*0.4, -h*0.7); // Bottom of window line
+    ctx.lineTo(w*0.3, -h*0.95); // Roof top right
+    ctx.lineTo(-w*0.3, -h*0.95); // Roof top left
+    ctx.fill();
+
+    // Rear Window
+    ctx.fillStyle = '#113'; // Glass
+    ctx.beginPath();
+    ctx.moveTo(-w*0.35, -h*0.72);
+    ctx.lineTo(w*0.35, -h*0.72);
+    ctx.lineTo(w*0.28, -h*0.92);
+    ctx.lineTo(-w*0.28, -h*0.92);
+    ctx.fill();
+
+    // Window reflection
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(-w*0.2, -h*0.9);
+    ctx.lineTo(-w*0.1, -h*0.75);
+    ctx.stroke();
+
+    // 6. Spoiler (if sporty)
+    ctx.fillStyle = lightBody;
+    ctx.fillRect(-w*0.42, -h*0.65, w*0.84, h*0.05); // Wing
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-w*0.2, -h*0.65, w*0.05, h*0.15); // Support L
+    ctx.fillRect(w*0.15, -h*0.65, w*0.05, h*0.15); // Support R
+
+    ctx.restore();
+}
+
+// Helper to darken/lighten hex color
+function shadeColor(color, percent) {
+    var R = parseInt(color.substring(1,3),16);
+    var G = parseInt(color.substring(3,5),16);
+    var B = parseInt(color.substring(5,7),16);
+
+    R = parseInt(R * (100 + percent) / 100);
+    G = parseInt(G * (100 + percent) / 100);
+    B = parseInt(B * (100 + percent) / 100);
+
+    R = (R<255)?R:255;
+    G = (G<255)?G:255;
+    B = (B<255)?B:255;
+
+    var RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
+    var GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
+    var BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
+
+    return "#"+RR+GG+BB;
+}
+
+// ---------------------------------------------------------
+// TRACK GENERATION
+// ---------------------------------------------------------
+
+function addSegment(curve, y) {
+    const n = game.segments.length;
+    const segment = new RoadSegment(n);
+
+    segment.curve = curve;
+    segment.slope = y; // Simplified slope, not fully implemented for height change to keep math stable
+
+    // Color pattern
+    const dark = Math.floor(n / 3) % 2; // Rumble strip frequency
+    const light = Math.floor(n / 9) % 2; // Road lightness frequency
+
+    segment.color.road = light ? '#6b6b6b' : '#636363';
+    segment.color.grass = light ? '#1a8c24' : '#13751c';
+    segment.color.rumble = dark ? '#ffffff' : '#c40000';
+    segment.color.lane = '#ffffff';
+
+    game.segments.push(segment);
+}
+
+function buildRoad() {
+    game.segments = [];
+
+    // Helper to build sections
+    const straight = (len) => { for(let i=0; i<len; i++) addSegment(0, 0); }
+    const curve = (len, c) => { for(let i=0; i<len; i++) addSegment(c, 0); }
+    const hill = (len, c, h) => { for(let i=0; i<len; i++) addSegment(c, h); } // Slope ignored for now to ensure stability
+
+    // Track Design
+    straight(50); // Start
+    curve(200, 2); // Long right
+    straight(50);
+    curve(100, -2); // Sharp left
+    straight(50);
+    curve(200, -1); // Long easy left
+    straight(100);
+    curve(50, 4); // Hairpin right
+    straight(150);
+    curve(100, -3); // Medium left
+    straight(200); // Finish straight
+
+    game.trackLength = game.segments.length * SEGMENT_LENGTH;
+}
+
+// ---------------------------------------------------------
+// GAME LOOP
+// ---------------------------------------------------------
+
+const input = { left: false, right: false, up: false, down: false };
+
+function update(dt) {
+    if (game.finished) return;
+
+    // Update Player Position
+    game.player.update(dt, input);
+
+    // Update AI Cars
+    game.cars.forEach(car => {
+        car.update(dt);
+
+        // Simple AI steering visual based on track curve
+        const segment = findSegment(car.z);
+        // AI speed variation
+        if (segment.curve > 1) car.speed *= 0.99; // slow on curves
+        else if (car.speed < car.maxSpeed) car.speed += 10;
+    });
+
+    // Update Race Time
+    game.raceTime += dt;
+    document.getElementById('timeVal').innerText = formatTime(game.raceTime);
+    document.getElementById('speedVal').innerText = Math.floor((game.player.speed / game.player.maxSpeed) * 280); // Visual KMH
+
+    // Calculate Position
+    let pZ = game.player.z;
+    if (game.lap > 1) pZ += game.trackLength * (game.lap - 1);
+
+    let rank = 1;
+    game.cars.forEach(car => {
+        let cZ = car.z;
+        // Assume AI are on same lap for simple calculation or infinite loop logic
+        // For simplicity: check distance in a loop
+        if ((cZ > game.player.z && cZ - game.player.z < game.trackLength/2) ||
+            (cZ < game.player.z && game.player.z - cZ > game.trackLength/2)) {
+             // AI is ahead physically relative to track loop
+             // This is a simplified check
+        }
+    });
+    // Hardcoded simple rank logic for demo (Player vs 3 AI)
+    // Real logic would track total distance traveled
+}
+
+function findSegment(z) {
+    return game.segments[Math.floor(z / SEGMENT_LENGTH) % game.segments.length];
+}
+
+function render() {
+    // 1. Clear Screen
+    ctx.fillStyle = '#72D7EE'; // Sky Color
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw simple horizon gradient
+    const grd = ctx.createLinearGradient(0, 0, 0, height/2);
+    grd.addColorStop(0, "#0b2e45");
+    grd.addColorStop(1, "#265c8a");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, width, height/2);
+
+    // 2. Project Road
+    const baseSegment = findSegment(game.player.z);
+    const basePercent = (game.player.z % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+    const playerSegmentIndex = baseSegment.index;
+
+    let dx = -(baseSegment.curve * basePercent); // Curve offset for smooth rendering
+    let x = 0;
+    let maxY = height; // Clipping buffer
+
+    // Render loop
+    for (let n = 0; n < DRAW_DISTANCE; n++) {
+        const segment = game.segments[(baseSegment.index + n) % game.segments.length];
+        const looped = segment.index < baseSegment.index;
+
+        // Camera Z position relative to segment
+        const cameraZ = game.player.z - (looped ? game.trackLength : 0);
+        const cameraY = 1500; // Camera Height
+
+        // Project points
+        project(segment.p1, -x, cameraY, cameraZ, game.cameraDepth, width, height, ROAD_WIDTH);
+        project(segment.p2, -x - dx, cameraY, cameraZ, game.cameraDepth, width, height, ROAD_WIDTH);
+
+        // Calculate offset for next segment based on curve
+        x += dx;
+        dx += segment.curve;
+
+        // Clip behind camera
+        if (segment.p1.camera.z <= game.cameraDepth || // Behind camera
+            segment.p2.screen.y >= maxY ||             // Below rendered ground
+            segment.p2.screen.y >= segment.p1.screen.y) // Back face cull
+            continue;
+
+        // Draw Road
+        renderSegment(segment);
+        maxY = segment.p1.screen.y; // Update clip height
+    }
+
+    // 3. Draw Cars (Painter's Algorithm: Back to Front)
+    // Filter visible cars
+    const visibleCars = [];
+
+    // Add AI cars
+    game.cars.forEach(car => {
+        const cSeg = findSegment(car.z);
+        // Calculate relative Z to player
+        let relZ = car.z - game.player.z;
+        if (relZ < -game.trackLength/2) relZ += game.trackLength;
+        if (relZ > game.trackLength/2) relZ -= game.trackLength;
+
+        if (relZ > 0 && relZ < DRAW_DISTANCE * SEGMENT_LENGTH) {
+            visibleCars.push({ car: car, z: relZ, segment: cSeg });
+        }
+    });
+
+    // Add Player (Visual only, always drawn last usually, but sorted here by Z for correctness if camera changes)
+    // Actually player is always at fixed screen Y roughly, drawn separate usually.
+    // We will draw player separately last.
+
+    // Sort AI by distance (furthest first)
+    visibleCars.sort((a,b) => b.z - a.z);
+
+    visibleCars.forEach(item => {
+        // Project car position
+        const scale = game.cameraDepth / (item.z / SEGMENT_LENGTH); // Simplified projection scale based on Z
+        // Need exact projection to match road
+        // We can interpolate between segment p1 and p2 screen coords
+
+        // Find segment screen coordinates currently rendered? No, they change every frame based on player.
+        // We need to re-project this specific object or interpolate.
+        // Fast approximation:
+        // Use the segment data we calculated in the road loop?
+        // Better: Project just this object.
+
+        // Re-calculate projection for car
+        // A bit complex because x offset depends on all curves before it.
+        // Easier approach for 2.5D:
+        // car.x is strictly related to its offset and road projection.
+
+        // Let's use the segment's screen coordinates if available, or approximate.
+        // Since we don't store screen coords for all segments permanently, we rely on the loop.
+        // Actually, the standard way is to add sprites to segments and draw them during the road loop.
+        // But for cleaner code here, let's inject them into the loop drawing.
+    });
+
+    // RE-DRAW LOOP STRATEGY FOR SPRITES:
+    // To properly draw sprites within the Z-buffer of the road (so hills hide them),
+    // we should iterate back-to-front and draw sprites belonging to that segment.
+
+    // Let's redo the render loop logic slightly to include sprites.
+    // Reset maxY
+    maxY = height;
+
+    // Assign cars to segments for this frame (temporary)
+    game.cars.forEach(car => {
+        const seg = findSegment(car.z);
+        if(!seg.cars) seg.cars = [];
+        seg.cars.push(car);
+    });
+
+    // Render Road & Sprites (Back to Front)
+    for (let n = DRAW_DISTANCE - 1; n > 0; n--) {
+        const segment = game.segments[(baseSegment.index + n) % game.segments.length];
+        const looped = segment.index < baseSegment.index;
+        const cameraZ = game.player.z - (looped ? game.trackLength : 0);
+
+        // We need the accumulated X offset (curve) for this segment.
+        // This is expensive to calculate backwards.
+        // Standard approach: Forward project road to get screen coords, store them. Then draw back to front.
+    }
+
+    // --- OPTIMIZED RENDER PIPELINE ---
+    // 1. Project points (Forward)
+    let dx2 = -(baseSegment.curve * basePercent);
+    let x2 = 0;
+
+    for (let n = 0; n < DRAW_DISTANCE; n++) {
+        const segment = game.segments[(baseSegment.index + n) % game.segments.length];
+        const looped = segment.index < baseSegment.index;
+        const cameraZ = game.player.z - (looped ? game.trackLength : 0);
+        const cameraY = 1500;
+
+        project(segment.p1, (game.player.offset * ROAD_WIDTH) - x2, cameraY, cameraZ, game.cameraDepth, width, height, ROAD_WIDTH);
+        project(segment.p2, (game.player.offset * ROAD_WIDTH) - x2 - dx2, cameraY, cameraZ, game.cameraDepth, width, height, ROAD_WIDTH);
+
+        x2 += dx2;
+        dx2 += segment.curve;
+
+        segment.clip = maxY;
+        if (segment.p2.screen.y < maxY) maxY = segment.p2.screen.y; // Horizon tracking
+    }
+
+    // 2. Draw Segments (Back to Front)
+    for (let n = DRAW_DISTANCE - 1; n >= 0; n--) {
+        const segment = game.segments[(baseSegment.index + n) % game.segments.length];
+
+        // Draw Road
+        if (segment.p1.camera.z > game.cameraDepth) {
+             renderSegment(segment);
+        }
+
+        // Draw Cars on this segment
+        if (segment.cars && segment.cars.length > 0) {
+            segment.cars.forEach(car => {
+                // Interpolate position
+                const percent = (car.z % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+                // Simple linear interpolation between p1 and p2
+                const spriteScale = segment.p1.screen.scale + (segment.p2.screen.scale - segment.p1.screen.scale) * percent;
+                const spriteX = segment.p1.screen.x + (segment.p2.screen.x - segment.p1.screen.x) * percent +
+                    (spriteScale * car.offset * 300); // 🔥 controlled lateral move
+                const spriteY = segment.p1.screen.y + (segment.p2.screen.y - segment.p1.screen.y) * percent;
+
+                // Fade distant cars
+                const alpha = Math.min(1, (DRAW_DISTANCE - n) / 20);
+
+                drawCar(ctx, car, spriteX, spriteY, spriteScale, segment, alpha);
+            });
+            segment.cars = []; // Clear for next frame
+        }
+    }
+
+    // 3. Draw Player Car
+    // Player is always at screen bottom center
+    const playerScale = game.cameraDepth / (100 /* camera dist to screen plane */) * 0.4; // constant scale
+    // Actually, player is attached to camera, so scale is fixed visual preference
+    drawCar(ctx, game.player, width / 2, height - 100, 0.003 * width / 4, baseSegment);
+}
+
+function renderSegment(segment) {
+    if (segment.p2.screen.y >= segment.p1.screen.y) return; // Cull back faces
+
+    const x1 = segment.p1.screen.x;
+    const y1 = segment.p1.screen.y;
+    const w1 = segment.p1.screen.w;
+    const x2 = segment.p2.screen.x;
+    const y2 = segment.p2.screen.y;
+    const w2 = segment.p2.screen.w;
+
+    const r1 = w1; // road width
+    const r2 = w2;
+    const l1 = w1 * 1.1; // grass width boundary
+    const l2 = w2 * 1.1;
+
+    // Draw Grass
+    ctx.fillStyle = segment.color.grass;
+    ctx.fillRect(0, y2, width, y1 - y2);
+
+    // Draw Rumble
+    renderPolygon(ctx, x1-l1, y1, x1-r1, y1, x2-r2, y2, x2-l2, y2, segment.color.rumble);
+    renderPolygon(ctx, x1+l1, y1, x1+r1, y1, x2+r2, y2, x2+l2, y2, segment.color.rumble);
+
+    // Draw Road
+    renderPolygon(ctx, x1-r1, y1, x1+r1, y1, x2+r2, y2, x2-r2, y2, segment.color.road);
+
+    // Draw Lane Lines
+    if (segment.color.lane) {
+        const lanes = LANES;
+        const lineW1 = w1 / 30;
+        const lineW2 = w2 / 30;
+
+        let laneW1 = (w1 * 2) / lanes;
+        let laneW2 = (w2 * 2) / lanes;
+        let laneX1 = x1 - w1 + laneW1;
+        let laneX2 = x2 - w2 + laneW2;
+
+        for(let i=1; i<lanes; i++) {
+            // Check if rumble color is white (every other segment), if so draw lane
+            if (segment.color.rumble === '#ffffff') {
+                renderPolygon(ctx, laneX1 - lineW1/2, y1, laneX1 + lineW1/2, y1,
+                              laneX2 + lineW2/2, y2, laneX2 - lineW2/2, y2, segment.color.lane);
+            }
+            laneX1 += laneW1;
+            laneX2 += laneW2;
+        }
+    }
+}
+
+// ---------------------------------------------------------
+// CONTROL & SETUP
+// ---------------------------------------------------------
+
+document.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft': input.left = true; break;
+        case 'ArrowRight': input.right = true; break;
+        case 'ArrowUp': input.up = true; break;
+        case 'ArrowDown': input.down = true; break;
+        case ' ': input.down = true; break; // Brake
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft': input.left = false; break;
+        case 'ArrowRight': input.right = false; break;
+        case 'ArrowUp': input.up = false; break;
+        case 'ArrowDown': input.down = false; break;
+        case ' ': input.down = false; break;
+    }
+});
+
+// Game Loop
+function frame() {
+    if (!game.running) return;
+
+    const now = performance.now();
+    const dt = Math.min(1, (now - game.lastTime) / 1000); // Limit dt for lag
+    game.lastTime = now;
+
+    update(dt);
+    render();
+
+    requestAnimationFrame(frame);
+}
+
+game.startCountdown = function() {
+    document.getElementById('menuScreen').classList.add('hidden');
+    document.getElementById('hud').style.display = 'block';
+
+    const countEl = document.getElementById('countdown');
+    countEl.style.display = 'block';
+
+    // Init Game World
+    buildRoad();
+    game.player = new Player();
+    game.cars = [
+        new Car(0.5, 1000, 'ai1', 0),
+        new Car(-0.5, 2000, 'ai2', 0),
+        new Car(0.2, 3000, 'ai3', 0)
+    ];
+
+    // Set max speeds
+    game.cars[0].maxSpeed = 11500;
+    game.cars[1].maxSpeed = 11800;
+    game.cars[2].maxSpeed = 11200;
+
+    // Colors
+    game.player.color = '#00D4FF';
+    game.cars[0].color = '#FF0055'; // Red
+    game.cars[1].color = '#55FF00'; // Green
+    game.cars[2].color = '#FFFF00'; // Yellow
+
+    let count = 3;
+    const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+            countEl.innerText = count;
+        } else if (count === 0) {
+            countEl.innerText = "GO!";
+            countEl.style.color = "#00ff00";
+        } else {
+            clearInterval(timer);
+            countEl.style.display = 'none';
+            game.running = true;
+            game.lastTime = performance.now();
+            frame();
+        }
+    }, 1000);
+};
+
+function endGame() {
+    game.finished = true;
+    game.running = false;
+
+    // Calculate final position
+    let pos = 1;
+    // Simple logic: if we finished and others didn't pass line yet near us?
+    // This is simplified.
+
+    document.getElementById('resultsScreen').classList.remove('hidden');
+    document.getElementById('resTime').innerText = document.getElementById('timeVal').innerText;
+    document.getElementById('resPos').innerText = document.getElementById('posVal').innerText;
+}
+
+// Initial render for menu bg
+buildRoad();
+game.player = new Player();
+game.player.z = 500; // Position for menu bg look
+game.cameraDepth = 0.84;
+game.running = false;
+
+// Initial background draw
+function menuLoop() {
+    if(game.running) return;
+    // Auto drive camera for menu
+    game.player.z += 6000 * 0.016;
+    while (game.player.z >= game.trackLength) game.player.z -= game.trackLength;
+
+    render();
+    requestAnimationFrame(menuLoop);
+}
+
+// Start menu background loop
+game.lastTime = performance.now();
+menuLoop();
+
+</script>
+</body>
+</html>

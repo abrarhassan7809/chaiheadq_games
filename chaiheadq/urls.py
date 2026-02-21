@@ -19,8 +19,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from tweet import urls as tweet_urls
+from chai_games import urls as game_urls
+from django.contrib.auth.urls import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('tweet/', include(tweet_urls)),
+    path('chai_games/', include(game_urls)),
+    path('accounts/', include('django.contrib.auth.urls')),
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
